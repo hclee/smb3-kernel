@@ -1358,7 +1358,9 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 	 * to the struct since the kernel thread not created yet
 	 * no need to spinlock this init of tcpStatus or srv_count
 	 */
+	spin_lock(&GlobalMid_Lock);
 	tcp_ses->tcpStatus = CifsNew;
+	spin_unlock(&GlobalMid_Lock);
 	++tcp_ses->srv_count;
 
 	if (ctx->echo_interval >= SMB_ECHO_INTERVAL_MIN &&
@@ -1403,7 +1405,9 @@ smbd_connected:
 		goto out_err_crypto_release;
 	}
 	tcp_ses->min_offload = ctx->min_offload;
+	spin_lock(&GlobalMid_Lock);
 	tcp_ses->tcpStatus = CifsNeedNegotiate;
+	spin_unlock(&GlobalMid_Lock);
 
 	if ((ctx->max_credits < 20) || (ctx->max_credits > 60000))
 		tcp_ses->max_credits = SMB2_MAX_CREDITS_AVAILABLE;
