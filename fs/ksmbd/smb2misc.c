@@ -287,11 +287,14 @@ static inline int smb2_ioctl_resp_len(struct smb2_ioctl_req *h)
 		le32_to_cpu(h->MaxOutputResponse);
 }
 
-static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
+static int smb2_validate_credit_charge(struct ksmbd_work *work,
+				       struct smb2_hdr *hdr)
 {
-	int req_len = 0, expect_resp_len = 0, calc_credit_num, max_len;
-	int credit_charge = le16_to_cpu(hdr->CreditCharge);
+	unsigned int req_len = 0, expect_resp_len = 0, calc_credit_num, max_len;
+	unsigned short credit_charge = le16_to_cpu(hdr->CreditCharge);
 	void *__hdr = hdr;
+	struct ksmbd_conn *conn = work->conn;
+	int ret;
 
 	switch (hdr->Command) {
 	case SMB2_QUERY_INFO:
@@ -313,12 +316,15 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 		req_len = smb2_ioctl_req_len(__hdr);
 		expect_resp_len = smb2_ioctl_resp_len(__hdr);
 		break;
-	default:
+	case SMB2_CANCEL:
 		return 0;
+	default:
+		req_len = 1;
+		break;
 	}
 
-	credit_charge = max(1, credit_charge);
-	max_len = max(req_len, expect_resp_len);
+	credit_charge = max_t(unsigned short, credit_charge, 1);
+	max_len = max_t(unsigned int, req_len, expect_resp_len);
 	calc_credit_num = DIV_ROUND_UP(max_len, SMB2_MAX_BUFFER_SIZE);
 
 	if (credit_charge < calc_credit_num) {
@@ -327,7 +333,17 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 		return 1;
 	}
 
-	return 0;
+	spin_lock(&conn->credits_lock);
+	if (credit_charge <= conn->total_credits) {
+		conn->total_credits -= credit_charge;
+		ret = 0;
+	} else {
+		ksmbd_debug(SMB, "Insufficient credits granted, given: %u, granted: %u\n",
+			    credit_charge, conn->total_credits);
+		ret = 1;
+	}
+	spin_unlock(&conn->credits_lock);
+	return ret;
 }
 
 int ksmbd_smb2_check_message(struct ksmbd_work *work)
@@ -386,7 +402,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 	}
 
 	if ((work->conn->vals->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) &&
-	    smb2_validate_credit_charge(hdr)) {
+	    smb2_validate_credit_charge(work, hdr)) {
 		work->conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
 		return 1;
 	}
