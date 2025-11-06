@@ -186,6 +186,12 @@ static int ntfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		else
 			fc->sb_flags &= ~SB_POSIXACL;
 		break;
+	case Opt_disable_sparse:
+		if (result.boolean)
+			NVolSetDisableSparse(vol);
+		else
+			NVolClearDisableSparse(vol);
+		break;
 	default:
 		return -EINVAL;
 	}

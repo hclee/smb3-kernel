@@ -2395,6 +2395,8 @@ int ntfs_show_options(struct seq_file *sf, struct dentry *root)
 		seq_puts(sf, ",hide_dot_files");
 	if (NVolCheckWindowsNames(vol))
 		seq_puts(sf, ",windows_names");
+	if (NVolDisableSparse(vol))
+		seq_puts(sf, ",disable_sparse");
 	if (vol->sb->s_flags & SB_POSIXACL)
 		seq_puts(sf, ",acl");
 	return 0;

@@ -154,6 +154,7 @@ enum {
 	NV_ShowHiddenFiles,	/* 1: Return hidden files in ntfs_readdir(). */
 	NV_HideDotFiles,
 	NV_CheckWindowsNames,
+	NV_DisableSparse,
 };
 
 /*
@@ -189,6 +190,7 @@ DEFINE_NVOL_BIT_OPS(SysImmutable)
 DEFINE_NVOL_BIT_OPS(ShowHiddenFiles)
 DEFINE_NVOL_BIT_OPS(HideDotFiles)
 DEFINE_NVOL_BIT_OPS(CheckWindowsNames)
+DEFINE_NVOL_BIT_OPS(DisableSparse)
 
 static inline void ntfs_inc_free_clusters(struct ntfs_volume *vol, s64 nr)
 {
